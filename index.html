@@ -1125,6 +1125,59 @@ body {
 .flip-check-box, .flip-check-options, .flip-check-btn { pointer-events:auto; position:relative; z-index:20; }
 .deep-mini-back .flip-check-btn { cursor:pointer; }
 .flip-check-btn:disabled { cursor:default; }
+
+
+/* ── FINAL CBCS HARDER PRACTICE + PLAIN QUESTION STEM FIX ── */
+.flip-check-question, .concept-question-plain {
+  color:#10223a !important;
+  text-decoration:none !important;
+  font-weight:900;
+}
+.flip-check-question .key-term,
+.flip-check-question .rel-word,
+.concept-question-plain .key-term,
+.concept-question-plain .rel-word {
+  color:inherit !important;
+  background:transparent !important;
+  text-decoration:none !important;
+  border:0 !important;
+  padding:0 !important;
+  box-shadow:none !important;
+}
+.flip-check-btn,
+.practice-opt,
+.activity-btn,
+.nha-btn {
+  min-height:48px;
+  display:block;
+  width:100%;
+  user-select:none;
+  -webkit-user-select:none;
+  touch-action:manipulation;
+}
+.hidden-rationale {
+  display:none;
+  margin-top:12px;
+  padding:14px 16px;
+  border-radius:16px;
+  background:rgba(255,255,255,.78);
+  border:1px solid rgba(148,163,184,.22);
+  color:#334155;
+  font-weight:800;
+  line-height:1.52;
+}
+.hidden-rationale.show { display:block; }
+.exam-warning-box {
+  margin-top:14px;
+  padding:14px 16px;
+  border-radius:18px;
+  background:linear-gradient(135deg, rgba(255,237,213,.95), rgba(254,243,199,.82));
+  border:1px solid rgba(217,119,6,.18);
+  color:#7c2d12;
+  font-weight:900;
+  line-height:1.55;
+}
+
 </style>
 </head>
 <body>
@@ -3505,6 +3558,333 @@ renderMedicarePartStage = function(){
     <div class="part-diagram">
       <div class="part-hub">Medicare</div>
       <div class="part-grid">${parts.map((p, i)=>`<div class="deep-mini-card part-card ${p.cls}" onclick="flipDeepCard(this)"><div class="deep-mini-inner"><div class="deep-mini-face deep-mini-front palette-card" style="background:${styleFromPalette('medicare', i)}"><span class="deep-badge">${p.tag}</span><h4>${p.title}</h4><p>${enhanceLearningText(p.front, 'medicare')}</p><p style="margin-top:10px;color:#475569;font-size:.86rem;">Tap to answer an example →</p></div><div class="deep-mini-face deep-mini-back palette-card" style="background:${styleFromPalette('medicare', i+1)}"><span class="deep-badge">Concept Check</span>${renderFlipConceptCheck(p.back, 'medicare', `medicare-part-${i}`)}</div></div></div>`).join('')}</div>
+    </div>
+  </div>`;
+};
+
+
+
+// ═══════════════════════════════════════════
+// FINAL CBCS REVISION: PLAIN STEMS + RANDOMIZED HARDER ITEMS
+// ═══════════════════════════════════════════
+function plainTextOnly(value){
+  const div = document.createElement('div');
+  div.innerHTML = String(value || '');
+  return (div.textContent || div.innerText || '').replace(/\s+/g,' ').trim();
+}
+function escapeHTML(value){
+  return String(value || '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+}
+function shuffleChoices(options, correctIndex){
+  const arr = options.map((text, idx)=>({ text, wasCorrect: idx === correctIndex }));
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return { options: arr.map(x=>x.text), correctIndex: arr.findIndex(x=>x.wasCorrect) };
+}
+function findAnswerFromExplanation(text, topic){
+  const t = String(text || '').toLowerCase();
+  if (/part\s*a/.test(t)) return 'Part A';
+  if (/part\s*b/.test(t)) return 'Part B';
+  if (/part\s*c|advantage/.test(t)) return 'Part C';
+  if (/part\s*d|prescription/.test(t)) return 'Part D';
+  if (/medigap|supplement/.test(t)) return 'Medigap';
+  if (/medicaid/.test(t) && topic === 'medicaid') return 'Medicaid';
+  if (/prior authorization|precertification/.test(t)) return 'Prior authorization';
+  if (/advance beneficiary notice|\babn\b/.test(t)) return 'ABN';
+  if (/coordination of benefits|\bcob\b/.test(t)) return 'COB';
+  if (/assignment of benefits|\baob\b|directly to the provider|provider directly/.test(t)) return 'AOB';
+  if (/primary payer/.test(t)) return 'Primary payer';
+  if (/secondary payer/.test(t)) return 'Secondary payer';
+  if (/claim denial|denial/.test(t)) return 'Claim denial';
+  if (/before/.test(t)) return 'Before service';
+  if (/false/.test(t)) return 'False';
+  if (/true/.test(t)) return 'True';
+  return '';
+}
+function balancedOptionsForAnswer(answer, topic){
+  const a = plainTextOnly(answer);
+  const lower = a.toLowerCase();
+  const sets = {
+    medicare: {
+      'part a':['Part A','Part B','Part C','Part D'],
+      'part b':['Part A','Part B','Part C','Part D'],
+      'part c':['Part A','Part B','Part C','Part D'],
+      'part d':['Part A','Part B','Part C','Part D'],
+      'medigap':['Part C plan','Part D plan','Medigap plan','Medicaid plan']
+    },
+    medicaid: {
+      'medicaid':['Medicare','Medicaid','Medigap','TRICARE'],
+      'false':['True','False','Only after COB','Only with ABN'],
+      'true':['True','False','Only after COB','Only with ABN']
+    },
+    priorauth: {
+      'prior authorization':['Prior authorization','Assignment benefits','Coordination benefits','Beneficiary notice'],
+      'claim denial':['Claim denial','Claim approval','Premium refund','Policy renewal'],
+      'false':['True','False','Only for Medicaid','Only after denial']
+    },
+    abn: {
+      'abn':['ABN','COB','AOB','EOB'],
+      'before service':['Before service','After payment','After denial','At discharge'],
+      'false':['True','False','Only for HMO','Only for Medicaid']
+    },
+    cob: {
+      'cob':['COB','AOB','ABN','RA'],
+      'primary payer':['Primary payer','Secondary payer','Last resort','Subscriber'],
+      'secondary payer':['Primary payer','Secondary payer','Last resort','Subscriber']
+    },
+    aob: {
+      'aob':['AOB','COB','ABN','EOB'],
+      'provider receives reimbursement directly':['Provider direct pay','Patient direct pay','Medicaid first pay','Claim denial only'],
+      'false':['True','False','Only Medicare','Only Medicaid']
+    }
+  };
+  const topicSets = sets[topic] || {};
+  if (topicSets[lower]) return topicSets[lower];
+  if (['true','false'].includes(lower)) return ['True','False','Only after denial','Not enough data'];
+  if (['part a','part b','part c','part d'].includes(lower)) return ['Part A','Part B','Part C','Part D'];
+  const defaults = {
+    medicare:['Part A','Part B','Part C','Part D'],
+    medicaid:['Medicare','Medicaid','Medigap','TRICARE'],
+    priorauth:['Prior authorization','AOB authorization','COB processing','EOB posting'],
+    abn:['ABN notice','COB form','AOB signature','EOB report'],
+    cob:['COB process','AOB process','ABN notice','RA posting'],
+    aob:['AOB signature','COB process','ABN notice','EOB document']
+  };
+  let opts = defaults[topic] ? [...defaults[topic]] : ['Correct choice','Related choice','Wrong choice','Not enough data'];
+  const has = opts.some(o => o.toLowerCase() === lower);
+  if (!has && a) opts = [a, ...opts.filter(o => o.toLowerCase() !== lower)].slice(0,4);
+  return opts.slice(0,4);
+}
+function makeFlipCheckModel(raw, topic){
+  if (raw && typeof raw === 'object' && raw.question && Array.isArray(raw.options)) {
+    const correctIndex = Number(raw.answer ?? raw.correct ?? 0);
+    return {
+      question: plainTextOnly(raw.question),
+      options: raw.options.map(plainTextOnly),
+      correctIndex,
+      answer: plainTextOnly(raw.options[correctIndex] || ''),
+      why: plainTextOnly(raw.why || raw.rationale || '')
+    };
+  }
+  const parsed = parseConceptCheck(String(raw || ''));
+  let answer = plainTextOnly(parsed.answer || findAnswerFromExplanation(raw, topic));
+  if (!answer) answer = findAnswerFromExplanation(parsed.question, topic) || 'Correct choice';
+  let options = balancedOptionsForAnswer(answer, topic);
+  let correctIndex = options.findIndex(o => o.toLowerCase() === answer.toLowerCase());
+  if (correctIndex < 0) { options = [answer, ...options].slice(0,4); correctIndex = 0; }
+  return { question: plainTextOnly(parsed.question), options, correctIndex, answer, why: '' };
+}
+function renderFlipConceptCheck(rawText, topic, idSuffix){
+  const model = makeFlipCheckModel(rawText, topic);
+  const randomized = shuffleChoices(model.options, model.correctIndex);
+  const safeAnswer = encodeURIComponent(randomized.options[randomized.correctIndex] || model.answer || '');
+  const safeWhy = encodeURIComponent(model.why || 'Review the front of the card and explain why the correct option fits the billing rule.');
+  return `<div class="flip-check-box" onclick="event.stopPropagation()">
+    <div class="flip-check-question">${escapeHTML(model.question)}</div>
+    <div class="flip-check-options">
+      ${randomized.options.map((opt,idx)=>`<button type="button" class="flip-check-btn" data-choice="${idx}" data-correct="${randomized.correctIndex}" data-answer="${safeAnswer}" data-why="${safeWhy}" onclick="gradeFlipConcept(event,this)">${String.fromCharCode(65+idx)}. ${escapeHTML(opt)}</button>`).join('')}
+    </div>
+    <div class="flip-check-feedback" aria-live="polite"></div>
+  </div>`;
+}
+function gradeFlipConcept(event, btn){
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  playClick();
+  const chosen = Number(btn.dataset.choice);
+  const correct = Number(btn.dataset.correct);
+  const answer = decodeURIComponent(btn.dataset.answer || '');
+  const why = decodeURIComponent(btn.dataset.why || '');
+  const box = btn.closest('.flip-check-box');
+  if (!box) return;
+  box.querySelectorAll('.flip-check-btn').forEach((b,idx)=>{
+    b.disabled = true;
+    if (idx === correct) b.classList.add('correct');
+    if (idx === chosen && chosen !== correct) b.classList.add('incorrect');
+  });
+  const fb = box.querySelector('.flip-check-feedback');
+  if (!fb) return;
+  fb.classList.add('show');
+  fb.textContent = chosen === correct ? `Correct. ${why}` : `Not quite. Correct answer: ${answer}. ${why}`;
+}
+function renderPracticeQuestion(q,i){
+  const random = shuffleChoices(q.opts.map(plainTextOnly), q.ans);
+  return `<div class="practice-question" data-answer="${random.correctIndex}">
+    <p>${i+1}. ${escapeHTML(plainTextOnly(q.q))}</p>
+    <div class="practice-options">${random.options.map((o,j)=>`<button type="button" class="practice-opt" onclick="answerDeepPractice(event,this,${j})">${String.fromCharCode(65+j)}. ${escapeHTML(o)}</button>`).join('')}</div>
+    <div class="practice-feedback">${escapeHTML(q.why)}</div>
+  </div>`;
+}
+function answerDeepPractice(eventOrBtn, maybeBtn, maybeChosen){
+  let event = null, btn, chosen;
+  if (maybeBtn) { event = eventOrBtn; btn = maybeBtn; chosen = maybeChosen; }
+  else { btn = eventOrBtn; chosen = arguments[1]; }
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  playClick();
+  const box = btn.closest('.practice-question');
+  const ans = Number(box.dataset.answer);
+  box.querySelectorAll('.practice-opt').forEach((b,idx)=>{
+    b.disabled = true;
+    if (idx === ans) b.classList.add('correct');
+    if (idx === chosen && chosen !== ans) b.classList.add('incorrect');
+  });
+  const fb = box.querySelector('.practice-feedback');
+  fb.classList.add('show');
+  fb.textContent = chosen === ans ? 'Correct. ' + fb.textContent : 'Not quite. ' + fb.textContent;
+}
+
+// Add stronger CBCS/NHA teaching and higher-order questions without removing the simpler ones.
+DEEP_REVIEW.medicare.tiles.push('Eligibility: 65+, disability, ESRD, ALS', 'ESRD = End-Stage Renal Disease');
+DEEP_REVIEW.medicare.flow.splice(1, 0, ['Eligibility paths','Medicare usually starts at 65, but disability, ESRD, and ALS can create earlier eligibility. Disability generally connects to 24 months of disability benefits; ALS can start sooner.']);
+DEEP_REVIEW.medicare.cards.push(
+  {title:'Medicare Eligibility: Disability, ESRD, ALS', tag:'Eligibility trap', front:'Medicare is not only for age 65+. A person may qualify earlier through disability benefits, ESRD, or ALS.', check:{question:'A 42-year-old patient has permanent kidney failure requiring regular dialysis. Which Medicare eligibility path is most relevant?', options:['ESRD eligibility path','Medigap enrollment path','Medicaid last-resort rule','Birthday rule pathway'], answer:0, why:'ESRD means End-Stage Renal Disease and can allow Medicare eligibility before age 65.'}},
+  {title:'ESRD Meaning', tag:'Acronym', front:'ESRD means End-Stage Renal Disease: permanent kidney failure requiring dialysis or a kidney transplant.', check:{question:'In Medicare eligibility language, what does ESRD mean?', options:['End-stage renal disease','Employer secondary review','Electronic service remittance','Eligible supplemental rider'], answer:0, why:'ESRD stands for End-Stage Renal Disease.'}},
+  {title:'ALS Timing', tag:'Eligibility trap', front:'ALS, also called Lou Gehrig’s disease, is a special Medicare eligibility pathway and should not be confused with ESRD.', check:{question:'Which condition is also called Lou Gehrig’s disease in Medicare eligibility language?', options:['ALS','ESRD','COPD','CHF'], answer:0, why:'ALS is the condition also known as Lou Gehrig’s disease.'}}
+);
+DEEP_REVIEW.medicaid.tiles.push('Disabled individuals may qualify', 'Medicaid varies by state', 'ESRD itself is Medicare language');
+DEEP_REVIEW.medicaid.flow.splice(1, 0, ['Disability category','Medicaid can cover eligible people with disabilities, but the exact income, resource, and categorical rules vary by state.']);
+DEEP_REVIEW.medicaid.cards.push(
+  {title:'Medicaid and Disability', tag:'Eligibility category', front:'Medicaid may cover eligible people with disabilities. The billing specialist should still verify state eligibility, active coverage dates, and whether another payer is primary.', check:{question:'A patient has Medicaid because of disability and also has an active employer plan. What is the safest billing logic?', options:['Verify both plans first','Bill Medicaid first always','Ignore employer coverage','Collect full self-pay amount'], answer:0, why:'Medicaid is usually payer of last resort, so other active coverage must be verified.'}},
+  {title:'Do Not Misplace ESRD', tag:'Exam trap', front:'ESRD is a major Medicare eligibility pathway. Medicaid can cover people with disabilities, but ESRD questions often point to Medicare eligibility.', check:{question:'A test question says “permanent kidney failure requiring dialysis.” Which acronym should the student recognize?', options:['ESRD','AOB','COB','ABN'], answer:0, why:'That description is ESRD: End-Stage Renal Disease.'}}
+);
+
+const HARDER_NHA = {
+  medicare:[
+    {q:'A patient has Original Medicare and asks whether a Medigap plan can be used after enrolling in a Medicare Advantage HMO. What is the best response?', opts:['Medigap is not used with Advantage','Medigap replaces Part D coverage','Medigap pays before Part A claims','Medigap creates Medicaid eligibility'], ans:0, why:'Medigap supplements Original Medicare and is not used with Medicare Advantage.'},
+    {q:'A beneficiary is under 65 and begins Medicare because of ESRD. Which phrase best explains the eligibility trigger?', opts:['Permanent kidney failure requiring dialysis','Employer plan using birthday rule','Commercial plan denying COB update','Provider accepting direct assignment'], ans:0, why:'ESRD is permanent kidney failure requiring dialysis or kidney transplant.'},
+    {q:'A billing specialist sees a Part C plan on the card. Which assumption is safest before submitting the claim?', opts:['Follow private plan rules and network requirements','Bill Original Medicare directly for all services','Use Medigap to cover every denied charge','Assume Part D pays the physician charge'], ans:0, why:'Medicare Advantage is administered by a private plan, so plan rules and network requirements matter.'}
+  ],
+  medicaid:[
+    {q:'A patient has Medicaid and a current commercial plan. Which action best prevents an avoidable billing error?', opts:['Verify primary commercial coverage first','Post Medicaid as the first payer always','Skip eligibility because Medicaid is active','Bill the patient before payer review'], ans:0, why:'Medicaid is generally payer of last resort; other liable payers should be reviewed first.'},
+    {q:'Which statement best separates Medicaid disability coverage from Medicare ESRD eligibility?', opts:['Medicaid disability rules vary by state','ESRD always describes commercial plans','Disability prevents Medicaid enrollment','Medicaid replaces all Medicare benefits'], ans:0, why:'Medicaid may cover disabled individuals, but eligibility is state-administered and needs-based.'},
+    {q:'A question says the patient has low income, state-based eligibility, and another insurer. Which concept is most important?', opts:['Medicaid payer-of-last-resort logic','Medigap supplement selection logic','Part D formulary tier logic','ABN noncoverage notice logic'], ans:0, why:'Low income and state eligibility point to Medicaid; another insurer triggers payer-of-last-resort thinking.'}
+  ],
+  priorauth:[
+    {q:'A payer approved a prior authorization, but the claim later denied for eligibility inactive on the service date. Which lesson is most accurate?', opts:['Authorization does not guarantee payment','Authorization replaces eligibility checks','Authorization makes coding unnecessary','Authorization applies after denial only'], ans:0, why:'Prior authorization does not guarantee payment; eligibility and claim rules still matter.'},
+    {q:'A specialist schedules a nonemergency procedure requiring payer review. What should the billing specialist confirm before the service?', opts:['Authorization number and coverage status','Only the patient mailing address','Only the provider taxonomy code','The RA after payment is posted'], ans:0, why:'Required prior authorization and eligibility should be confirmed before the service.'},
+    {q:'A claim denies because required approval was missing before the MRI. Which process was likely missed?', opts:['Prior authorization review','Assignment of benefits signature','Coordination of benefits update','Advance beneficiary notice delivery'], ans:0, why:'Missing advance approval for required services is a prior authorization issue.'}
+  ],
+  abn:[
+    {q:'Medicare may deny a test as not medically necessary for the diagnosis listed. Which action best protects informed patient choice?', opts:['Issue ABN before performing test','Send EOB before collecting consent','Bill Medicaid before Medicare review','Use AOB instead of documentation'], ans:0, why:'An ABN is issued before the service when Medicare may deny for medical necessity.'},
+    {q:'A Medicare patient signed an ABN after the service was performed. What is the strongest concern?', opts:['Timing may make the notice invalid','ABN automatically creates coverage','ABN replaces medical records','Timing changes it into COB'], ans:0, why:'ABN must be given before the service.'},
+    {q:'Which situation best fits ABN rather than prior authorization?', opts:['Medicare may deny for medical necessity','Private plan requires preapproval','Patient has two group plans','Provider wants direct reimbursement'], ans:0, why:'ABN is a Medicare notice for expected noncoverage, often medical necessity.'}
+  ],
+  cob:[
+    {q:'A dependent is covered under both parents’ employer plans. The parents are not divorced. Which rule commonly decides primary payer?', opts:['Birthday rule for group plans','Medicaid last-resort rule','ABN medical necessity rule','Assignment direct-pay rule'], ans:0, why:'The birthday rule is used to determine primary payer for dependents under two group plans.'},
+    {q:'A remittance shows the secondary payer refused payment because primary EOB was not attached. What issue is most likely?', opts:['COB documentation is incomplete','ABN was signed too early','AOB sent payment to patient','Part D formulary was missing'], ans:0, why:'Secondary payers often need primary payment information for COB.'},
+    {q:'A patient has two payers and total benefits cannot exceed the allowed charge. Which concept is being applied?', opts:['Coordination of benefits','Assignment of benefits','Advance beneficiary notice','Medigap open enrollment'], ans:0, why:'COB prevents overpayment beyond the allowable amount.'}
+  ],
+  aob:[
+    {q:'A patient signed AOB, but still receives a bill for deductible and coinsurance. Which explanation is most accurate?', opts:['AOB directs payment but does not erase cost sharing','AOB makes all patient balances illegal','AOB means Medicaid should pay first','AOB changes the primary payer order'], ans:0, why:'AOB sends reimbursement to the provider; patient cost-sharing can still apply.'},
+    {q:'Which scenario is AOB rather than COB?', opts:['Patient authorizes provider direct payment','Patient has two active insurance plans','Patient gets Medicare noncoverage notice','Payer requires pre-service review'], ans:0, why:'AOB is about payment direction, not payer order.'},
+    {q:'A participating provider accepts assignment. Which billing statement is safest?', opts:['Provider accepts allowed amount rules','Provider can balance bill without limit','Patient always receives payer check','Secondary payer must pay first'], ans:0, why:'Participating providers accepting assignment follow allowed-amount rules.'}
+  ]
+};
+Object.keys(HARDER_NHA).forEach(topic => {
+  if (!TOPIC_NHA[topic]) TOPIC_NHA[topic] = [];
+  TOPIC_NHA[topic].push(...HARDER_NHA[topic]);
+});
+Object.keys(HARDER_NHA).forEach(topic => {
+  if (!DEEP_REVIEW[topic]) return;
+  DEEP_REVIEW[topic].practice.push(...HARDER_NHA[topic].slice(0,2));
+});
+
+// Override activity and NHA renderers to randomize correct-answer position and keep buttons clickable.
+function renderActivityBlock(topic){
+  const items = TOPIC_ACTIVITIES[topic] || [];
+  if (!items.length) return '';
+  return `<div class="deep-panel">
+    <span class="mini-section-label">Activities</span>
+    <h3>Interactive Activities</h3>
+    <p class="nha-note">Quick drills to make sure students truly understand the concept before the test-style items.</p>
+    <div class="topic-activity-grid">${items.map((item,i)=>{
+      const random = shuffleChoices(item.opts.map(plainTextOnly), item.ans);
+      return `<div class="activity-box palette-soft" style="background:${styleFromPalette(topic, i+1)}"><h4>${escapeHTML(item.title)}</h4><p>${escapeHTML(plainTextOnly(item.q))}</p><div class="activity-opts">${random.options.map((opt,j)=>`<button type="button" class="activity-btn" onclick="gradeChoice(event, this, ${j}, ${random.correctIndex}, 'activity')">${String.fromCharCode(65+j)}. ${escapeHTML(opt)}</button>`).join('')}</div><div class="activity-feedback">${escapeHTML(item.why)}</div></div>`;
+    }).join('')}</div>
+  </div>`;
+}
+function renderNhaPracticeBlock(topic){
+  const items = TOPIC_NHA[topic] || [];
+  if (!items.length) return '';
+  return `<div class="deep-panel">
+    <span class="mini-section-label">NHA / CBCS Practice</span>
+    <h3>Harder Certification-Style Practice</h3>
+    <p class="nha-note">These include easier recognition items plus harder trap questions that require choosing the safest billing logic.</p>
+    <div class="nha-grid">${items.map((item,i)=>{
+      const random = shuffleChoices(item.opts.map(plainTextOnly), item.ans);
+      return `<div class="nha-box palette-soft" style="background:${styleFromPalette(topic, i+2)}"><h4>Question ${i+1}</h4><p>${escapeHTML(plainTextOnly(item.q))}</p><div class="nha-opts">${random.options.map((opt,j)=>`<button type="button" class="nha-btn" onclick="gradeChoice(event, this, ${j}, ${random.correctIndex}, 'nha')">${String.fromCharCode(65+j)}. ${escapeHTML(opt)}</button>`).join('')}</div><div class="nha-feedback">${escapeHTML(item.why)}</div></div>`;
+    }).join('')}</div>
+  </div>`;
+}
+function gradeChoice(eventOrBtn, maybeBtn, maybeChosen, maybeAns, maybeMode){
+  let event = null, btn, chosen, ans, mode;
+  if (maybeMode) { event = eventOrBtn; btn = maybeBtn; chosen = maybeChosen; ans = maybeAns; mode = maybeMode; }
+  else { btn = eventOrBtn; chosen = arguments[1]; ans = arguments[2]; mode = arguments[3]; }
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  playClick();
+  const box = btn.closest(mode === 'activity' ? '.activity-box' : '.nha-box');
+  const selector = mode === 'activity' ? '.activity-btn' : '.nha-btn';
+  const feedback = box.querySelector(mode === 'activity' ? '.activity-feedback' : '.nha-feedback');
+  box.querySelectorAll(selector).forEach((b, idx)=>{
+    b.disabled = true;
+    if (idx === ans) b.classList.add('correct');
+    if (idx === chosen && chosen !== ans) b.classList.add('incorrect');
+  });
+  feedback.classList.add('show');
+  feedback.textContent = (chosen === ans ? 'Correct. ' : 'Not quite. ') + feedback.textContent;
+}
+
+// Main flashcards: remove colored/underlined hinting from the question stem and hide the answer until a choice is made.
+function inferGeneralCardCheck(fc){
+  const answer = findAnswerFromExplanation(fc.backA, fc.topic) || findAnswerFromExplanation(fc.backQ, fc.topic);
+  const options = balancedOptionsForAnswer(answer, fc.topic);
+  let correctIndex = options.findIndex(o => o.toLowerCase() === answer.toLowerCase());
+  if (correctIndex < 0) correctIndex = 0;
+  return { question: fc.backQ, options, answer: correctIndex, why: fc.backA };
+}
+function renderCard() {
+  if (!filteredFC.length) return;
+  const fc = filteredFC[currentFC];
+  const t = TOPICS.find(x => x.id === fc.topic);
+  document.getElementById('fcCard').classList.remove('flipped');
+  document.getElementById('fcFront').innerHTML = `
+    <span class="fc-category color-${t?.cls||'medicare'}">${fc.category}</span>
+    <div class="fc-title">${enhanceLearningText(fc.title, fc.topic)}</div>
+    <div class="fc-body">${enhanceLearningText(fc.front, fc.topic)}${buildAttentionBoxes(fc, fc.topic)}</div>`;
+  const check = inferGeneralCardCheck(fc);
+  document.getElementById('fcBack').innerHTML = `
+    <span class="fc-category color-${t?.cls||'medicare'}">Back of Card</span>
+    <div class="concept-check-card" onclick="event.stopPropagation()"><span class="cc-label">Concept Check</span>${renderFlipConceptCheck(check, fc.topic, `main-${currentFC}`)}</div>
+    <div class="hidden-rationale" id="main-card-rationale-${currentFC}">
+      <strong>Exam logic:</strong> ${enhanceLearningText(fc.backIntent, fc.topic)}
+    </div>`;
+  document.getElementById('fcCounter').textContent = `${currentFC + 1} / ${filteredFC.length}`;
+}
+const oldGradeFlipConcept = gradeFlipConcept;
+gradeFlipConcept = function(event, btn){
+  oldGradeFlipConcept(event, btn);
+  const rationale = btn.closest('.fc-back')?.querySelector('.hidden-rationale');
+  if (rationale) rationale.classList.add('show');
+};
+
+// Replace Medicare Part cards with non-obvious concept checks and plain question stems.
+renderMedicarePartStage = function(){
+  const parts = [
+    { cls:'part-a', tag:'Hospital Insurance', title:'Part A', front:'Inpatient hospital, skilled nursing facility care, hospice, and some home health.', check:{question:'A claim includes inpatient facility room charges after formal admission. Which Medicare part is most directly connected?', options:['Part A facility coverage','Part B provider coverage','Part D drug coverage','Medigap gap coverage'], answer:0, why:'Part A is hospital insurance and connects to inpatient facility charges.'}},
+    { cls:'part-b', tag:'Medical Insurance', title:'Part B', front:'Physician services, outpatient care, DME, preventive care, ambulance, labs, and other medical services.', check:{question:'A patient is not admitted but receives physician evaluation and outpatient diagnostic testing. Which part is most likely?', options:['Part B medical coverage','Part A facility coverage','Part C supplement coverage','Part D inpatient coverage'], answer:0, why:'Part B covers physician and outpatient medical services.'}},
+    { cls:'part-c', tag:'Medicare Advantage', title:'Part C', front:'Private Medicare-approved plan that bundles Part A and Part B and often includes Part D plus extras like dental or vision.', check:{question:'A card shows a private Medicare HMO replacing Original Medicare billing rules. What should the specialist recognize?', options:['Part C plan rules apply','Medigap pays as primary','Part D pays every claim','Medicaid pays first always'], answer:0, why:'Part C is Medicare Advantage and is run through a private plan.'}},
+    { cls:'part-d', tag:'Drug Coverage', title:'Part D', front:'Outpatient prescription drug coverage using formularies, tiers, copays, and medication rules.', check:{question:'A denial involves an outpatient prescription that is not on the plan formulary. Which Medicare area is most connected?', options:['Part D drug coverage','Part A hospital coverage','Part B provider coverage','Medigap coinsurance gap'], answer:0, why:'Part D addresses outpatient prescription drugs and formularies.'}},
+    { cls:'part-gap', tag:'Supplement', title:'Medigap', front:'Helps pay deductibles, copays, and coinsurance for Original Medicare only.', check:{question:'A beneficiary has Original Medicare and wants help with deductibles and coinsurance. Which option best matches?', options:['Medigap supplement policy','Part C replacement plan','Part D formulary plan','ABN liability notice'], answer:0, why:'Medigap supplements Original Medicare cost-sharing.'}}
+  ];
+  return `<div class="topic-stage">
+    <span class="mini-section-label">ABCD Review</span>
+    <h3>Bright Medicare Parts Map</h3>
+    <p>${enhanceLearningText('Each Medicare card below has its own color. Click each card and use the examples to separate Part A, Part B, Part C, Part D, and Medigap.', 'medicare')}</p>
+    <div class="exam-warning-box">Exam trap: Medicare is mainly age 65+, but students must also recognize disability, ESRD, and ALS eligibility pathways.</div>
+    <div class="part-diagram">
+      <div class="part-hub">Medicare</div>
+      <div class="part-grid">${parts.map((p, i)=>`<div class="deep-mini-card part-card ${p.cls}" onclick="flipDeepCard(this)"><div class="deep-mini-inner"><div class="deep-mini-face deep-mini-front palette-card" style="background:${styleFromPalette('medicare', i)}"><span class="deep-badge">${p.tag}</span><h4>${p.title}</h4><p>${enhanceLearningText(p.front, 'medicare')}</p><p style="margin-top:10px;color:#475569;font-size:.86rem;">Tap to answer a concept check →</p></div><div class="deep-mini-face deep-mini-back palette-card" style="background:${styleFromPalette('medicare', i+1)}"><span class="deep-badge">Concept Check</span>${renderFlipConceptCheck(p.check, 'medicare', `medicare-part-${i}`)}</div></div></div>`).join('')}</div>
     </div>
   </div>`;
 };
