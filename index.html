@@ -1097,6 +1097,34 @@ body {
   .rights-footer strong { color: #000 !important; }
 }
 
+
+/* ── FLIP CARD CONCEPT CHECK OPTIONS ── */
+.flip-check-box { margin-top:10px; }
+.flip-check-question { font-size:.98rem; line-height:1.45; font-weight:900; color:#10223a; margin-bottom:10px; }
+.flip-check-options { display:grid; gap:8px; margin-top:10px; }
+.flip-check-btn {
+  text-align:left;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(148,163,184,.28);
+  background:rgba(255,255,255,.9);
+  color:#334155;
+  font-weight:900;
+  font-family:var(--font-body);
+  cursor:pointer;
+  transition:transform .2s ease, box-shadow .2s ease;
+}
+.flip-check-btn:hover { transform:translateY(-1px); box-shadow:0 8px 18px rgba(15,23,42,.08); color:#0f172a; }
+.flip-check-btn.correct { border-color:var(--success); background:rgba(34,197,94,.16); color:#166534; }
+.flip-check-btn.incorrect { border-color:var(--error); background:rgba(239,68,68,.11); color:#991b1b; }
+.flip-check-feedback { display:none; margin-top:10px; padding:10px 12px; border-radius:14px; background:rgba(255,255,255,.75); font-weight:850; color:#334155; line-height:1.45; }
+.flip-check-feedback.show { display:block; }
+
+
+/* clickable concept-check buttons fix */
+.flip-check-box, .flip-check-options, .flip-check-btn { pointer-events:auto; position:relative; z-index:20; }
+.deep-mini-back .flip-check-btn { cursor:pointer; }
+.flip-check-btn:disabled { cursor:default; }
 </style>
 </head>
 <body>
@@ -3356,6 +3384,129 @@ renderDeepReview = function(){
         ${renderNhaPracticeBlock(currentDeepTopic)}
       </div>
     </div>`;
+};
+
+
+function normalizeConceptText(text){
+  return String(text || '').replace(/^Concept check:\s*/i,'').replace(/^Example check:\s*/i,'').trim();
+}
+function parseConceptCheck(text){
+  const clean = normalizeConceptText(text);
+  const parts = clean.split(/\bAnswer:\s*/i);
+  const question = (parts[0] || clean).trim();
+  let answer = (parts[1] || '').trim();
+  if (answer) answer = answer.replace(/\s+True or false\?$/i,'').replace(/[.。]\s*$/,'').trim();
+  return { question, answer: answer || 'Correct' };
+}
+function optionSetForAnswer(answer, topic){
+  const a = String(answer || '').trim();
+  const lower = a.toLowerCase();
+  let opts;
+  if (['true','false'].includes(lower)) {
+    opts = ['True','False'];
+  } else if (['part a','part b','part c','part d'].includes(lower)) {
+    opts = ['Part A','Part B','Part C','Part D'];
+  } else if (lower === 'medicaid') {
+    opts = ['Medicare','Medicaid','Medigap','Part D'];
+  } else if (lower === 'medicare') {
+    opts = ['Medicare','Medicaid','Commercial PPO','Workers compensation'];
+  } else if (lower === 'no') {
+    opts = ['Yes','No','Only with Medicaid','Only after denial'];
+  } else if (lower === 'cob') {
+    opts = ['AOB','ABN','COB','Prior authorization'];
+  } else if (lower.includes('claim denial')) {
+    opts = ['Claim denial','Automatic payment','No billing effect','Patient premium refund'];
+  } else if (lower.includes('provider receives') || lower.includes('provider')) {
+    opts = ['The provider receives reimbursement directly','The patient always receives the check','Medicaid pays first','The claim is automatically denied'];
+  } else if (lower.includes('before')) {
+    opts = ['Before','After','Only at discharge','Only after payment'];
+  } else if (lower.includes('payer order')) {
+    opts = ['Payment direction','Payer order','Drug tier level','Diagnosis selection'];
+  } else {
+    const defaults = {
+      medicare:['Part A','Part B','Part C','Part D'],
+      medicaid:['Medicaid','Medicare','Medigap','Commercial PPO'],
+      priorauth:['Prior authorization','Assignment of benefits','Coordination of benefits','ABN'],
+      abn:['ABN','COB','AOB','Prior authorization'],
+      cob:['COB','AOB','ABN','Medigap'],
+      aob:['AOB','COB','ABN','Prior authorization']
+    };
+    opts = defaults[topic] ? [...defaults[topic]] : ['Correct','Incorrect','Not enough information','Ask the payer'];
+  }
+  const hasAnswer = opts.some(o => o.toLowerCase() === a.toLowerCase());
+  if (!hasAnswer && a && a !== 'Correct') opts = [a, ...opts.filter(o=>o.toLowerCase()!==a.toLowerCase())].slice(0,4);
+  return opts.slice(0,4);
+}
+function renderFlipConceptCheck(rawText, topic, idSuffix){
+  const parsed = parseConceptCheck(rawText);
+  const options = optionSetForAnswer(parsed.answer, topic);
+  const correctIndex = Math.max(0, options.findIndex(o => o.toLowerCase() === parsed.answer.toLowerCase()));
+  const safeAnswer = encodeURIComponent(parsed.answer || '');
+  return `<div class="flip-check-box" onclick="event.stopPropagation()">
+    <div class="flip-check-question">${enhanceLearningText(parsed.question, topic)}</div>
+    <div class="flip-check-options">
+      ${options.map((opt,idx)=>`<button type="button" class="flip-check-btn" data-choice="${idx}" data-correct="${correctIndex}" data-answer="${safeAnswer}" onclick="gradeFlipConcept(event,this)">${String.fromCharCode(65+idx)}. ${enhanceLearningText(opt, topic)}</button>`).join('')}
+    </div>
+    <div class="flip-check-feedback" aria-live="polite"></div>
+  </div>`;
+}
+function gradeFlipConcept(event, btn){
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  playClick();
+  const chosen = Number(btn.dataset.choice);
+  const correct = Number(btn.dataset.correct);
+  const answer = decodeURIComponent(btn.dataset.answer || '');
+  const box = btn.closest('.flip-check-box');
+  if (!box) return;
+  box.querySelectorAll('.flip-check-btn').forEach((b,idx)=>{
+    b.disabled = true;
+    if (idx === correct) b.classList.add('correct');
+    if (idx === chosen && chosen !== correct) b.classList.add('incorrect');
+  });
+  const fb = box.querySelector('.flip-check-feedback');
+  if (!fb) return;
+  fb.classList.add('show');
+  fb.textContent = chosen === correct ? 'Correct — now you can move on.' : `Not quite. Correct answer: ${answer}. Review the front of the card, then try explaining why.`;
+}
+
+renderDeepMiniCard = function(c,i,cls,topicOverride){
+  const topic = topicOverride || Object.keys(DEEP_REVIEW).find(k => DEEP_REVIEW[k].cls === cls) || 'medicare';
+  return `<div class="deep-mini-card" onclick="flipDeepCard(this)">
+    <div class="deep-mini-inner">
+      <div class="deep-mini-face deep-mini-front palette-card" style="background:${styleFromPalette(topic,i)}">
+        <span class="deep-badge">${c.tag}</span>
+        <h4>${enhanceLearningText(c.title, cls)}</h4>
+        <p>${enhanceLearningText(c.front, cls)}</p>
+        <p style="margin-top:10px;color:#475569;font-size:.86rem;">Tap to answer a concept check →</p>
+      </div>
+      <div class="deep-mini-face deep-mini-back palette-card" style="background:${styleFromPalette(topic,i+1)}">
+        <span class="deep-badge">Concept Check</span>
+        ${renderFlipConceptCheck(c.back, topic, `${topic}-${i}`)}
+      </div>
+    </div>
+  </div>`;
+};
+
+renderMedicarePartStage = function(){
+  const parts = [
+    { cls:'part-a', tag:'Hospital Insurance', title:'Part A', front:'Inpatient hospital, skilled nursing facility care, hospice, and some home health.', back:'Example check: Patient admitted for inpatient surgery and room charges. Which part applies? Answer: Part A.'},
+    { cls:'part-b', tag:'Medical Insurance', title:'Part B', front:'Physician services, outpatient care, DME, preventive care, ambulance, labs, and other medical services.', back:'Example check: Office visit, outpatient labs, or DME. Which part applies? Answer: Part B.'},
+    { cls:'part-c', tag:'Medicare Advantage', title:'Part C', front:'Private Medicare-approved plan that bundles Part A and Part B and often includes Part D plus extras like dental or vision.', back:'Example check: Private HMO/PPO plan replacing Original Medicare. Which part? Answer: Part C.'},
+    { cls:'part-d', tag:'Drug Coverage', title:'Part D', front:'Outpatient prescription drug coverage using formularies, tiers, copays, and medication rules.', back:'Example check: Which part helps with covered outpatient blood pressure or diabetes prescriptions? Answer: Part D.'},
+    { cls:'part-gap', tag:'Supplement', title:'Medigap', front:'Helps pay deductibles, copays, and coinsurance for Original Medicare only.', back:'Example check: Can Medigap be used with Medicare Advantage? Answer: No.'}
+  ];
+  return `<div class="topic-stage">
+    <span class="mini-section-label">ABCD Review</span>
+    <h3>Bright Medicare Parts Map</h3>
+    <p>${enhanceLearningText('Each Medicare card below has its own color. Click each card and use the examples to separate Part A, Part B, Part C, Part D, and Medigap.', 'medicare')}</p>
+    <div class="part-diagram">
+      <div class="part-hub">Medicare</div>
+      <div class="part-grid">${parts.map((p, i)=>`<div class="deep-mini-card part-card ${p.cls}" onclick="flipDeepCard(this)"><div class="deep-mini-inner"><div class="deep-mini-face deep-mini-front palette-card" style="background:${styleFromPalette('medicare', i)}"><span class="deep-badge">${p.tag}</span><h4>${p.title}</h4><p>${enhanceLearningText(p.front, 'medicare')}</p><p style="margin-top:10px;color:#475569;font-size:.86rem;">Tap to answer an example →</p></div><div class="deep-mini-face deep-mini-back palette-card" style="background:${styleFromPalette('medicare', i+1)}"><span class="deep-badge">Concept Check</span>${renderFlipConceptCheck(p.back, 'medicare', `medicare-part-${i}`)}</div></div></div>`).join('')}</div>
+    </div>
+  </div>`;
 };
 
 // KEYBOARD
